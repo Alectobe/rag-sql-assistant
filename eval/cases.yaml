@@ -1,0 +1,37 @@
+# Evaluation cases: question + reference SQL.
+# Execution accuracy = result of generated SQL equals result of reference SQL.
+# Expand to ~10-20 cases; align with knowledge/examples.md and your real schema.
+
+- id: dau_yesterday
+  question: "Сколько активных пользователей было вчера?"
+  reference_sql: |
+    select count(distinct user_id) as dau
+    from analytics.events
+    where event_date = today() - 1
+
+- id: top_countries_pro
+  question: "Топ-5 стран по числу пользователей с тарифом pro"
+  reference_sql: |
+    select country, count() as users_cnt
+    from analytics.users
+    where plan = 'pro'
+    group by country
+    order by users_cnt desc
+    limit 5
+
+- id: avg_session_by_platform
+  question: "Средняя длительность сессии по платформам за последние 7 дней"
+  reference_sql: |
+    select platform, avg(duration_seconds) as avg_duration
+    from analytics.sessions
+    where started_at >= now() - interval 7 day
+    group by platform
+    order by avg_duration desc
+
+- id: purchase_events_total
+  question: "Сколько всего событий покупки за май 2026?"
+  reference_sql: |
+    select count() as purchases
+    from analytics.events
+    where event_name = 'purchase'
+      and event_date between toDate('2026-05-01') and toDate('2026-05-31')

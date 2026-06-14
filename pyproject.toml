@@ -1,0 +1,26 @@
+[project]
+name = "rag-sql-assistant"
+version = "0.1.0"
+description = "RAG Text-to-SQL assistant over ClickHouse for product analytics (MVP-0)"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.69",
+    "openai>=1.50",
+    "clickhouse-connect>=0.8",
+    "sqlglot>=25.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.5",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "streamlit>=1.40",
+    "requests>=2.32",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
