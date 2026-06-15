@@ -1,15 +1,97 @@
-# Evaluation cases: question + reference SQL.
-# Execution accuracy = result of generated SQL equals result of reference SQL.
-# Expand to ~10-20 cases; align with knowledge/examples.md and your real schema.
+# Evaluation cases: question + reference SQL + difficulty.
+# Execution accuracy = result of generated SQL equals result of reference SQL
+# (order-insensitive). Each reference_sql MUST return a non-empty, non-zero
+# result on the synthetic seed, otherwise run_eval marks the case [INVALID].
+# Definitions align with knowledge/metrics.md; categorical values with
+# knowledge/tables/*.md.
+
+# --- easy: single table, count / group by ---
+
+- id: top_events
+  difficulty: easy
+  question: "Какие 5 типов событий встречаются чаще всего?"
+  reference_sql: |
+    select event_name, count() as cnt
+    from analytics.events
+    group by event_name
+    order by cnt desc
+    limit 5
+
+- id: unique_purchasers
+  difficulty: easy
+  question: "Сколько уникальных пользователей совершили покупку?"
+  reference_sql: |
+    select count(distinct user_id) as users
+    from analytics.events
+    where event_name = 'purchase'
+
+- id: users_by_plan
+  difficulty: easy
+  question: "Сколько пользователей на каждом тарифе?"
+  reference_sql: |
+    select plan, count() as cnt
+    from analytics.users
+    group by plan
+    order by cnt desc
+
+- id: top_countries
+  difficulty: easy
+  question: "Топ-5 стран по числу пользователей"
+  reference_sql: |
+    select country, count() as cnt
+    from analytics.users
+    group by country
+    order by cnt desc
+    limit 5
+
+- id: events_by_platform
+  difficulty: easy
+  question: "Сколько событий на каждой платформе?"
+  reference_sql: |
+    select platform, count() as cnt
+    from analytics.events
+    group by platform
+    order by cnt desc
+
+# --- medium: filters + relative dates ---
 
 - id: dau_yesterday
+  difficulty: medium
   question: "Сколько активных пользователей было вчера?"
   reference_sql: |
     select count(distinct user_id) as dau
     from analytics.events
     where event_date = today() - 1
 
+- id: new_users_30d
+  difficulty: medium
+  question: "Сколько новых пользователей за последние 30 дней?"
+  reference_sql: |
+    select count() as new_users
+    from analytics.users
+    where signup_date >= today() - 30
+
+- id: avg_session_by_platform_7d
+  difficulty: medium
+  question: "Средняя длительность сессии по платформам за последние 7 дней"
+  reference_sql: |
+    select platform, avg(duration_seconds) as avg_duration
+    from analytics.sessions
+    where started_at >= now() - interval 7 day
+    group by platform
+    order by avg_duration desc
+
+- id: purchases_7d
+  difficulty: medium
+  question: "Сколько покупок было за последние 7 дней?"
+  reference_sql: |
+    select count() as purchases
+    from analytics.events
+    where event_name = 'purchase'
+      and event_date >= today() - 7
+
 - id: top_countries_pro
+  difficulty: medium
   question: "Топ-5 стран по числу пользователей с тарифом pro"
   reference_sql: |
     select country, count() as users_cnt
@@ -19,19 +101,50 @@
     order by users_cnt desc
     limit 5
 
-- id: avg_session_by_platform
-  question: "Средняя длительность сессии по платформам за последние 7 дней"
+# --- hard: joins, ratios, multi-step ---
+
+- id: conversion_30d
+  difficulty: hard
+  question: "Конверсия в покупку за последние 30 дней"
   reference_sql: |
-    select platform, avg(duration_seconds) as avg_duration
-    from analytics.sessions
-    where started_at >= now() - interval 7 day
-    group by platform
+    select uniqIf(user_id, event_name = 'purchase') / uniq(user_id) as conversion
+    from analytics.events
+    where event_date >= today() - 30
+
+- id: purchases_by_country
+  difficulty: hard
+  question: "Сколько покупок совершено в каждой стране?"
+  reference_sql: |
+    select u.country, count() as purchases
+    from analytics.events e
+    inner join analytics.users u on e.user_id = u.user_id
+    where e.event_name = 'purchase'
+    group by u.country
+    order by purchases desc
+
+- id: avg_session_by_plan
+  difficulty: hard
+  question: "Средняя длительность сессии по тарифу пользователя"
+  reference_sql: |
+    select u.plan, avg(s.duration_seconds) as avg_duration
+    from analytics.sessions s
+    inner join analytics.users u on s.user_id = u.user_id
+    group by u.plan
     order by avg_duration desc
 
-- id: purchase_events_total
-  question: "Сколько всего событий покупки за май 2026?"
+- id: events_per_day_7d
+  difficulty: hard
+  question: "Сколько событий было каждый день за последние 7 дней?"
   reference_sql: |
-    select count() as purchases
+    select event_date, count() as cnt
     from analytics.events
-    where event_name = 'purchase'
-      and event_date between toDate('2026-05-01') and toDate('2026-05-31')
+    where event_date >= today() - 7
+    group by event_date
+    order by event_date
+
+- id: mobile_session_share
+  difficulty: hard
+  question: "Какая доля сессий приходится на мобильные платформы (ios и android)?"
+  reference_sql: |
+    select countIf(platform in ('ios', 'android')) / count() as mobile_share
+    from analytics.sessions
