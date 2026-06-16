@@ -1,36 +1,55 @@
 # Эталонные пары «вопрос → SQL» (few-shot)
 
 > ⚠️ ШАБЛОН под синтетическую схему. Замени на запросы в стиле твоей команды.
+>
+> ИНВАРИАНТ: вопросы здесь НЕ должны совпадать с вопросами из `eval/cases.yaml`.
+> Иначе модель видит эталонные ответы в промпте — это утечка train/test и
+> завышенная точность. Примеры учат ПАТТЕРНАМ (джойны, группировка, идиомы
+> ClickHouse), а не ответам на конкретные кейсы.
 
-### Вопрос: Сколько активных пользователей было вчера?
+### Вопрос: Сколько событий приходится на каждый тариф?
 ```sql
-select count(distinct user_id) as dau
-from analytics.events
-where event_date = today() - 1
+select u.plan, count() as events_cnt
+from analytics.events e
+inner join analytics.users u on e.user_id = u.user_id
+group by u.plan
+order by events_cnt desc
 ```
 
-### Вопрос: Топ-5 стран по числу пользователей с тарифом pro
+### Вопрос: Средняя длительность сессии по странам
 ```sql
-select country, count() as users_cnt
-from analytics.users
-where plan = 'pro'
-group by country
-order by users_cnt desc
-limit 5
-```
-
-### Вопрос: Средняя длительность сессии по платформам за последние 7 дней
-```sql
-select platform, avg(duration_seconds) as avg_duration
-from analytics.sessions
-where started_at >= now() - interval 7 day
-group by platform
+select u.country, avg(s.duration_seconds) as avg_duration
+from analytics.sessions s
+inner join analytics.users u on s.user_id = u.user_id
+group by u.country
 order by avg_duration desc
 ```
 
-### Вопрос: Конверсия в покупку за последние 30 дней
+### Вопрос: Сколько событий по неделям за последний месяц?
 ```sql
-select uniqIf(user_id, event_name = 'purchase') / uniq(user_id) as conversion
+select toStartOfWeek(event_date) as week, count() as events_cnt
 from analytics.events
 where event_date >= today() - 30
+group by week
+order by week
+```
+
+### Вопрос: Какая доля событий — просмотры товара?
+```sql
+select countIf(event_name = 'view_item') / count() as view_item_share
+from analytics.events
+```
+
+### Вопрос: Сколько уникальных пользователей заходило с каждой платформы?
+```sql
+select platform, count(distinct user_id) as users
+from analytics.events
+group by platform
+order by users desc
+```
+
+### Вопрос: Сколько в среднем событий приходится на одного пользователя?
+```sql
+select count() / uniq(user_id) as avg_events_per_user
+from analytics.events
 ```

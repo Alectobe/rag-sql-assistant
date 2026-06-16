@@ -33,20 +33,22 @@ def _openai_client():
     return OpenAI(base_url=settings.local_base_url, api_key=settings.local_api_key)
 
 
-def _complete_anthropic(system: str, user: str, *, model: str, max_tokens: int) -> str:
+def _complete_anthropic(system: str, user: str, *, model: str, max_tokens: int, temperature: float) -> str:
     resp = _anthropic_client().messages.create(
         model=model,
         max_tokens=max_tokens,
+        temperature=temperature,
         system=system,
         messages=[{"role": "user", "content": user}],
     )
     return "".join(block.text for block in resp.content if block.type == "text").strip()
 
 
-def _complete_local(system: str, user: str, *, model: str, max_tokens: int) -> str:
+def _complete_local(system: str, user: str, *, model: str, max_tokens: int, temperature: float) -> str:
     resp = _openai_client().chat.completions.create(
         model=model,
         max_tokens=max_tokens,
+        temperature=temperature,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -55,11 +57,15 @@ def _complete_local(system: str, user: str, *, model: str, max_tokens: int) -> s
     return (resp.choices[0].message.content or "").strip()
 
 
-def complete(system: str, user: str, *, model: str, max_tokens: int = 2000) -> str:
-    """Return the model's text response for a single-turn system+user prompt."""
+def complete(system: str, user: str, *, model: str, max_tokens: int = 2000, temperature: float = 0.0) -> str:
+    """Return the model's text response for a single-turn system+user prompt.
+
+    ``temperature`` defaults to 0 for reproducible generation (so eval deltas are
+    meaningful); callers can raise it where variety is wanted.
+    """
     backend = settings.llm_backend.lower()
     if backend == "anthropic":
-        return _complete_anthropic(system, user, model=model, max_tokens=max_tokens)
+        return _complete_anthropic(system, user, model=model, max_tokens=max_tokens, temperature=temperature)
     if backend == "local":
-        return _complete_local(system, user, model=model, max_tokens=max_tokens)
+        return _complete_local(system, user, model=model, max_tokens=max_tokens, temperature=temperature)
     raise LLMError(f"Unknown LLM_BACKEND: {settings.llm_backend!r}")
