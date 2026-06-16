@@ -27,7 +27,9 @@ INSERT INTO analytics.events
 SELECT
     toDate(now() - toIntervalSecond(intDiv(number * (90 * 86400), 20000))) AS event_date,
     now() - toIntervalSecond(intDiv(number * (90 * 86400), 20000))         AS event_time,
-    (number % 500) + 1                                                  AS user_id,
+    -- Hashed so user (and thus country/plan) is independent of event_name,
+    -- which otherwise co-varied with country via a shared mod-5 cycle.
+    (cityHash64(number) % 500) + 1                                      AS user_id,
     ['app_open','purchase','add_to_cart','view_item','logout'][(number % 5) + 1] AS event_name,
     ['ios','android','web'][(number % 3) + 1]                          AS platform,
     (number % 2000) + 1                                                AS session_id

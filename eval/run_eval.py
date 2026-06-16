@@ -29,9 +29,18 @@ CASES_PATH = Path(__file__).resolve().parent / "cases.yaml"
 _ZERO_SCALARS = {"0", "0.0", "None", ""}
 
 
+def _norm_cell(value) -> str:
+    """Normalize a cell for comparison. A DateTime at midnight equals the Date,
+    so toStartOfDay(d) and d compare equal ('2026-06-15 00:00:00' -> '2026-06-15')."""
+    s = str(value)
+    if s.endswith(" 00:00:00"):
+        s = s[:-9]
+    return s
+
+
 def _result_set(rows: list[list]) -> list[tuple[str, ...]]:
     """Order-insensitive, type-insensitive view of a result for comparison."""
-    return sorted(tuple(str(c) for c in row) for row in rows)
+    return sorted(tuple(_norm_cell(c) for c in row) for row in rows)
 
 
 def _is_vacuous(result_set: list[tuple[str, ...]]) -> bool:

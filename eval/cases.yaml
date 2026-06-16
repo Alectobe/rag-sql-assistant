@@ -77,7 +77,7 @@
   reference_sql: |
     select platform, avg(duration_seconds) as avg_duration
     from analytics.sessions
-    where started_at >= now() - interval 7 day
+    where started_at >= today() - 7
     group by platform
     order by avg_duration desc
 
